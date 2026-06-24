@@ -1,17 +1,12 @@
 name: Daily TruckTok price monitor
 
-on:
-  schedule:
-    # 每天 UTC 02:00，即北京时间 10:00
-    - cron: "0 2 * * *"
+"on":
   workflow_dispatch:
+  schedule:
+    - cron: "0 2 * * *"
 
 permissions:
   contents: write
-
-concurrency:
-  group: trucktok-price-monitor
-  cancel-in-progress: false
 
 jobs:
   monitor:
@@ -19,10 +14,10 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -31,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Scrape prices and send alerts
+      - name: Run price monitor
         env:
           MONITOR_TIMEZONE: Asia/Shanghai
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -43,16 +38,15 @@ jobs:
           SMTP_USE_SSL: ${{ secrets.SMTP_USE_SSL }}
         run: python price_monitor.py
 
-      - name: Commit updated CSV files
+      - name: Commit CSV files
         run: |
           if [ -z "$(git status --porcelain -- prices.csv price_changes.csv)" ]; then
-            echo "No CSV changes to commit."
+            echo "No CSV changes."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add prices.csv price_changes.csv
-          git commit -m "chore: update TruckTok prices $(date -u +%F)"
+          git commit -m "Update TruckTok prices"
           git push
